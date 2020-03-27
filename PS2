@@ -1,0 +1,96 @@
+# install the readxl package
+library(readxl)
+
+# install dplyr package 
+library(dplyr)
+
+data = read_excel(path= 'C:/Users/Fabiana/Downloads/Institutions.xlsx')
+
+institutions = data$avexpr
+income  = data$logpgp95
+mortality = data$logem4
+
+sapply(institutions, class)
+is.numeric(institutions)
+institutions=as.numeric(institutions)
+is.numeric(institutions)
+income=as.numeric(income)
+is.numeric(income)
+mortality=as.numeric(mortality)
+is.numeric(mortality)
+
+   ### e)
+correlation = cor.test(institutions,income)
+plot(institutions, income, type="p", main=" OLS RELATIONSHIP BETWEEN EXPROPRIATION RISK AND INCOME ", ylim=c(4,10), ylab = "Log GDP per capita", xlab = "Average Expropriation Risk")
+abline(lm(income ~ institutions, data = data), col = "blue")
+
+
+
+   ### f)
+plot(mortality, institutions, type="p", main="FIRST-STAGE RELATIONSHIP BETWEEN SETTLER MORTALITY AND EXPROPRIATION RISK ", ylim = c(3,10), ylab = "Average Expropriation Risk", xlab="Log of Settler Mortality")
+abline(lm(institutions ~ mortality, data = data), col = "green")
+
+
+
+   ### g)
+## Panel C(1)
+basecountries=subset(data, data$baseco==1)
+income.base=basecountries$logpgp95
+institutions.base=basecountries$avexpr
+OLS1=lm(income.base~institutions.base, data=basecountries)
+OLS1
+summary(OLS1)
+
+## Panel C(2)
+lattidute.base=as.numeric(basecountries$lat_abst)
+OLS2=lm(income.base~institutions.base+lattidute.base, data=basecountries)
+summary(OLS2)
+OLS2
+
+#FIRST STAGE LEAST SQUARES:
+## Panel B(1)
+mortality.base=as.numeric(basecountries$logem4)
+first.stage1=lm(institutions.base~ mortality.base, data=basecountries)
+summary(first.stage1)
+first.stage1
+
+## Panel B(2)
+first.stage2=lm(institutions.base~ mortality.base+lattidute.base, data=basecountries)
+summary(first.stage2)
+
+#SECOND STAGE LEAST SQUARES:
+## Panel A(1)
+install.packages("ivpack")
+library(ivpack)
+second.stage1=ivreg(income.base~institutions.base | mortality.base)
+summary(second.stage1)
+
+## Panel A(2)
+second.stage2=ivreg(income.base~institutions.base+lattidute.base| mortality.base + lattidute.base)
+summary(second.stage2)
+
+## Plotting the table with the stargazer package:
+install.packages("stargazer")
+library(stargazer)
+stargazer(second.stage1, second.stage2, align=TRUE, type = "text")
+stargazer(first.stage1, first.stage2, align=TRUE, type = "text")
+stargazer(OLS1, OLS2, align=TRUE, type = "text")
+
+
+
+   ### h)
+#Cutoff value = 5 for the treatment(avexpr)
+institutions.over5 = filter(data, data$avexpr>5) #treated
+institutions.under5 = filter(data, data$avexpr<=5) #not treated
+
+#Cutoff value = 5 for the instrument(logem4) 
+mortality.over4 = filter(data, data$logem4>5) #not assigned
+mortality.under4 = filter(data, data$logem4<=5) #assigned
+
+regression.treated=lm(institutions.over5$logpgp95~institutions.over5$avexpr)
+regression.untreated=lm(institutions.under5$logpgp95~institutions.under5$avexpr)
+
+beta.treated = summary(regression.treated)$coefficients[2,1]
+beta.untreted = summary(regression.untreated)$coefficients[2,1]
+estimate = beta.treated - beta.untreted
+estimate
